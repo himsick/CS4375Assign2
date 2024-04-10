@@ -31,13 +31,13 @@ class RNN(nn.Module):
 
     def forward(self, inputs):
         # [to fill] obtain hidden layer representation (https://pytorch.org/docs/stable/generated/torch.nn.RNN.html)
-        _, hidden = 
+        _, hidden = self.rnn(inputs)
         # [to fill] obtain output layer representations
-
+        # _ is the output from self.rnn
         # [to fill] sum over output 
-
+        output = torch.sum(_, dim=0)
         # [to fill] obtain probability dist.
-
+        predicted_vector = self.softmax(output)
         return predicted_vector
 
 
@@ -115,7 +115,8 @@ if __name__ == "__main__":
                 vectors = [word_embedding[i.lower()] if i.lower() in word_embedding.keys() else word_embedding['unk'] for i in input_words ]
 
                 # Transform the input into required shape
-                vectors = torch.tensor(vectors).view(len(vectors), 1, -1)
+                vectors_np = np.array(vectors)
+                vectors = torch.tensor(vectors_np).view(len(vectors_np), 1, -1)
                 output = model(vectors)
 
                 # Get loss
@@ -155,8 +156,8 @@ if __name__ == "__main__":
             input_words = input_words.translate(input_words.maketrans("", "", string.punctuation)).split()
             vectors = [word_embedding[i.lower()] if i.lower() in word_embedding.keys() else word_embedding['unk'] for i
                        in input_words]
-
-            vectors = torch.tensor(vectors).view(len(vectors), 1, -1)
+            vectors_np = np.array(vectors)
+            vectors = torch.tensor(vectors_np).view(len(vectors_np), 1, -1)
             output = model(vectors)
             predicted_label = torch.argmax(output)
             correct += int(predicted_label == gold_label)
