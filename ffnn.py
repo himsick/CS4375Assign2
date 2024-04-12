@@ -79,20 +79,25 @@ def convert_to_vector_representation(data, word2index):
 
 
 
-def load_data(train_data, val_data):
+def load_data(train_data, val_data, test_data):
     with open(train_data) as training_f:
         training = json.load(training_f)
     with open(val_data) as valid_f:
         validation = json.load(valid_f)
+    with open(test_data) as test_f:
+        testing = json.load(test_f)
 
     tra = []
     val = []
+    test = []
     for elt in training:
         tra.append((elt["text"].split(),int(elt["stars"]-1)))
     for elt in validation:
         val.append((elt["text"].split(),int(elt["stars"]-1)))
+    for elt in testing:
+        test.append((elt["text"].split(),int(elt["stars"]-1)))
 
-    return tra, val
+    return tra, val, test
 
 
 if __name__ == "__main__":
@@ -111,13 +116,14 @@ if __name__ == "__main__":
 
     # load data
     print("========== Loading data ==========")
-    train_data, valid_data = load_data(args.train_data, args.val_data) # X_data is a list of pairs (document, y); y in {0,1,2,3,4}
+    train_data, valid_data, test_data = load_data(args.train_data, args.val_data, args.test_data) # X_data is a list of pairs (document, y); y in {0,1,2,3,4}
     vocab = make_vocab(train_data)
     vocab, word2index, index2word = make_indices(vocab)
 
     print("========== Vectorizing data ==========")
     train_data = convert_to_vector_representation(train_data, word2index)
     valid_data = convert_to_vector_representation(valid_data, word2index)
+    test_data = convert_to_vector_representation(test_data, word2index)
     
 
     model = FFNN(input_dim = len(vocab), h = args.hidden_dim)
@@ -126,6 +132,7 @@ if __name__ == "__main__":
     for epoch in range(args.epochs):
         model.train()
         optimizer.zero_grad()
+        t_loss = 0
         loss = None
         correct = 0
         total = 0
@@ -149,13 +156,15 @@ if __name__ == "__main__":
                 else:
                     loss += example_loss
             loss = loss / minibatch_size
+            t_loss += loss
             loss.backward()
             optimizer.step()
         print("Training completed for epoch {}".format(epoch + 1))
         print("Training accuracy for epoch {}: {}".format(epoch + 1, correct / total))
         print("Training time for this epoch: {}".format(time.time() - start_time))
+        print("Loss for this epoch: {}".format(t_loss))
 
-
+        t_loss = 0
         loss = None
         correct = 0
         total = 0
@@ -178,9 +187,43 @@ if __name__ == "__main__":
                 else:
                     loss += example_loss
             loss = loss / minibatch_size
+            t_loss += loss
         print("Validation completed for epoch {}".format(epoch + 1))
         print("Validation accuracy for epoch {}: {}".format(epoch + 1, correct / total))
         print("Validation time for this epoch: {}".format(time.time() - start_time))
+        print("Loss for this batch: {}".format(t_loss))
+        
+        t_loss = 0
+        loss = None
+        correct = 0
+        total = 0
+        start_time = time.time()
+        print("Test started for epoch {}".format(epoch + 1))
+        minibatch_size = 16 
+        N = len(test_data) 
+        for minibatch_index in tqdm(range(N // minibatch_size)):
+            optimizer.zero_grad()
+            loss = None
+            for example_index in range(minibatch_size):
+                input_vector, gold_label = test_data[minibatch_index * minibatch_size + example_index]
+                predicted_vector = model(input_vector)
+                predicted_label = torch.argmax(predicted_vector)
+                correct += int(predicted_label == gold_label)
+                total += 1
+                example_loss = model.compute_Loss(predicted_vector.view(1,-1), torch.tensor([gold_label]))
+                if loss is None:
+                    loss = example_loss
+                else:
+                    loss += example_loss
+            loss = loss / minibatch_size
+            t_loss += loss
+        print("Test completed for epoch {}".format(epoch + 1))
+        print("Test accuracy for epoch {}: {}".format(epoch + 1, correct / total))
+        print("Test time for this epoch: {}".format(time.time() - start_time))
+        print("Loss for this batch: {}".format(t_loss))
 
+        print(len(train_data))
+        print(len(valid_data))
+        print(len(test_data))
     # write out to results/test.out
     
