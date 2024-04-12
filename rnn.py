@@ -41,19 +41,25 @@ class RNN(nn.Module):
         return predicted_vector
 
 
-def load_data(train_data, val_data):
+def load_data(train_data, val_data, test_data):
     with open(train_data) as training_f:
         training = json.load(training_f)
     with open(val_data) as valid_f:
         validation = json.load(valid_f)
+    with open(test_data) as test_f:
+        testing = json.load(test_f)
 
     tra = []
     val = []
+    test = []
     for elt in training:
         tra.append((elt["text"].split(),int(elt["stars"]-1)))
     for elt in validation:
         val.append((elt["text"].split(),int(elt["stars"]-1)))
-    return tra, val
+    for elt in testing:
+        test.append((elt["text"].split(),int(elt["stars"]-1)))
+
+    return tra, val, test
 
 
 if __name__ == "__main__":
@@ -67,7 +73,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print("========== Loading data ==========")
-    train_data, valid_data = load_data(args.train_data, args.val_data) # X_data is a list of pairs (document, y); y in {0,1,2,3,4}
+    train_data, valid_data, test_data = load_data(args.train_data, args.val_data, args.test_data) # X_data is a list of pairs (document, y); y in {0,1,2,3,4}
 
     # Think about the type of function that an RNN describes. To apply it, you will need to convert the text data into vector representations.
     # Further, think about where the vectors will come from. There are 3 reasonable choices:
@@ -165,9 +171,35 @@ if __name__ == "__main__":
             # print(predicted_label, gold_label)
         print("Validation completed for epoch {}".format(epoch + 1))
         print("Validation accuracy for epoch {}: {}".format(epoch + 1, correct / total))
+        
         validation_accuracy = correct/total
-
         last_validation_accuracy = validation_accuracy
+        last_train_accuracy = trainning_accuracy
+
+        model.eval()
+        correct = 0
+        total = 0
+        random.shuffle(test_data)
+        print("Test started for epoch {}".format(epoch + 1))
+        test_data = test_data
+
+        for input_words, gold_label in tqdm(test_data):
+            input_words = " ".join(input_words)
+            input_words = input_words.translate(input_words.maketrans("", "", string.punctuation)).split()
+            vectors = [word_embedding[i.lower()] if i.lower() in word_embedding.keys() else word_embedding['unk'] for i
+                       in input_words]
+            vectors_np = np.array(vectors)
+            vectors = torch.tensor(vectors_np).view(len(vectors_np), 1, -1)
+            output = model(vectors)
+            predicted_label = torch.argmax(output)
+            correct += int(predicted_label == gold_label)
+            total += 1
+            # print(predicted_label, gold_label)
+        print("Test completed for epoch {}".format(epoch + 1))
+        print("Test accuracy for epoch {}: {}".format(epoch + 1, correct / total))
+        
+        test_accuracy = correct/total
+        last_test_accuracy = test_accuracy
         last_train_accuracy = trainning_accuracy
 
 
