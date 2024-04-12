@@ -88,7 +88,7 @@ if __name__ == "__main__":
     last_train_accuracy = 0
     last_validation_accuracy = 0
 
-    while not stopping_condition:
+    for epoch in range(args.epochs):
         random.shuffle(train_data)
         model.train()
         # You will need further code to operationalize training, ffnn.py may be helpful
@@ -167,15 +167,8 @@ if __name__ == "__main__":
         print("Validation accuracy for epoch {}: {}".format(epoch + 1, correct / total))
         validation_accuracy = correct/total
 
-        if validation_accuracy < last_validation_accuracy and trainning_accuracy > last_train_accuracy:
-            stopping_condition=True
-            print("Training done to avoid overfitting!")
-            print("Best validation accuracy is:", last_validation_accuracy)
-        else:
-            last_validation_accuracy = validation_accuracy
-            last_train_accuracy = trainning_accuracy
-
-        epoch += 1
+        last_validation_accuracy = validation_accuracy
+        last_train_accuracy = trainning_accuracy
 
 
 
